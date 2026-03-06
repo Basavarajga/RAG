@@ -1,4 +1,3 @@
-<img width="1898" height="754" alt="image" src="https://github.com/user-attachments/assets/ccbb7d6e-b813-4353-9361-8b77c5fcaff9" /># RAG
 # Finance RAG System
 
 This project implements a Retrieval-Augmented Generation (RAG) pipeline
