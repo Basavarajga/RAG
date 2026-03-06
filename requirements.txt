@@ -1,1 +1,8 @@
-
+sentence-transformers
+faiss-cpu
+rank_bm25
+wikipedia
+transformers
+torch
+numpy
+streamlit
