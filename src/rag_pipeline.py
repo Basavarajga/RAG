@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import argparse
 from pathlib import Path
 from typing import List
 
@@ -93,11 +94,25 @@ class FinanceRAG:
 
 
 def main() -> None:
+    parser = argparse.ArgumentParser(description="Run the finance RAG QA pipeline.")
+    parser.add_argument("-q", "--question", help="Single question to answer in non-interactive mode.")
+    args = parser.parse_args()
+
     rag = FinanceRAG()
+
+    if args.question:
+        print(f"Answer: {rag.answer(args.question.strip())}")
+        return
+
     print("Finance RAG ready. Type a question (or 'exit').")
 
     while True:
-        query = input("\nQuestion: ").strip()
+        try:
+            query = input("\nQuestion: ").strip()
+        except EOFError:
+            print("\nGoodbye!")
+            break
+
         if query.lower() in {"exit", "quit"}:
             print("Goodbye!")
             break
