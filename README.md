@@ -82,6 +82,11 @@ python src/rag_pipeline.py
 python evaluation/evaluate.py
 ```
 
+5. Run the full project checks (pipeline + API smoke test):
+```bash
+bash scripts/run_full_checks.sh
+```
+
 ## Example Queries
 
 - `How do interest rates affect bond prices?`
@@ -101,3 +106,15 @@ python evaluation/evaluate.py
 - Designed to run locally end-to-end.
 - Main entry point for QA is:
   - `python src/rag_pipeline.py`
+
+
+## Streamlit UI
+
+Run the UI:
+```bash
+streamlit run app.py
+```
+
+By default the UI calls `http://127.0.0.1:8000/ask`. In the sidebar you can:
+- Switch to **Local** mode to run RAG directly in-process (no API server required).
+- Keep **API** mode and customize the API URL if your server runs elsewhere.

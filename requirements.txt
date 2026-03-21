@@ -5,3 +5,8 @@ wikipedia
 transformers
 torch
 numpy
+fastapi
+uvicorn
+streamlit
+requests
+yfinance
