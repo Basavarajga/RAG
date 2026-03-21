@@ -3,11 +3,15 @@
 from __future__ import annotations
 
 import argparse
+import sys
 from pathlib import Path
 from typing import List
 
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
+
+if __package__ in {None, ""}:
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from src.retriever import HybridRetriever
 
