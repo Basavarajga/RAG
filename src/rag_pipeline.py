@@ -9,7 +9,7 @@ from typing import List
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
-from retriever import HybridRetriever
+from src.retriever import HybridRetriever
 
 
 BASE_DIR = Path(__file__).resolve().parents[1]
