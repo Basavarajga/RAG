@@ -82,6 +82,11 @@ python src/rag_pipeline.py
 python evaluation/evaluate.py
 ```
 
+5. Run the full project checks (pipeline + API smoke test):
+```bash
+bash scripts/run_full_checks.sh
+```
+
 ## Example Queries
 
 - `How do interest rates affect bond prices?`

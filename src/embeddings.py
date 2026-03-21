@@ -3,12 +3,17 @@
 from __future__ import annotations
 
 import json
+import sys
 from pathlib import Path
 from typing import Dict, List, Tuple
 
 import faiss
 import numpy as np
-from embedder import get_embedder
+
+if __package__ in {None, ""}:
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from src.embedder import get_embedder
 
 
 BASE_DIR = Path(__file__).resolve().parents[1]
