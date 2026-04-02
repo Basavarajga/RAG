@@ -1,7 +1,6 @@
 sentence-transformers
 faiss-cpu
 rank_bm25
-wikipedia
 transformers
 torch
 numpy
@@ -10,3 +9,4 @@ uvicorn
 streamlit
 requests
 yfinance
+pypdf

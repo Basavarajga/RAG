@@ -1,14 +1,13 @@
 # Finance RAG System
 
-A complete Retrieval-Augmented Generation (RAG) pipeline for financial question answering.
+A complete Retrieval-Augmented Generation (RAG) pipeline for financial question answering using **local documents** and optional **ad-hoc PDF upload** in Streamlit.
 
 ## Architecture
 
-The project follows this flow:
-
 1. **Corpus Builder (`src/build_corpus.py`)**
-   - Downloads finance-related Wikipedia pages.
-   - Cleans noisy text.
+   - Reads local files from `data/raw_docs/`.
+   - Supports `.pdf` and `.txt` sources.
+   - Extracts + cleans text.
    - Splits text into ~240-word chunks (within the requested 200–300 range).
    - Saves chunks to `data/finance_corpus.json`.
 
@@ -46,6 +45,7 @@ src/
   embeddings.py
   retriever.py
   rag_pipeline.py
+  text_processing.py
 evaluation/
   evaluate.py
 README.md
@@ -62,51 +62,32 @@ pip install -r requirements.txt
 
 ## How to Run
 
-1. Build corpus:
+1. Add your documents to `data/raw_docs/` (`.pdf` and/or `.txt`).
+
+2. Build corpus:
 ```bash
 python src/build_corpus.py
 ```
 
-2. Build embeddings + FAISS index:
+3. Build embeddings + FAISS index:
 ```bash
 python src/embeddings.py
 ```
 
-3. Start interactive RAG QA:
+4. Start interactive RAG QA:
 ```bash
 python src/rag_pipeline.py
 ```
 
-4. Evaluate retrieval quality:
+5. Evaluate retrieval quality:
 ```bash
 python evaluation/evaluate.py
 ```
 
-5. Run the full project checks (pipeline + API smoke test):
+6. Run the full project checks (pipeline + API smoke test):
 ```bash
 bash scripts/run_full_checks.sh
 ```
-
-## Example Queries
-
-- `How do interest rates affect bond prices?`
-- `What is the role of a central bank in monetary policy?`
-- `How is market capitalization calculated?`
-- `What does price-to-earnings ratio indicate?`
-
-## Error Handling
-
-- Wikipedia fetch failures are handled gracefully (pages are skipped with warnings).
-- Empty retrieval results return:
-  - **"Not found in knowledge base."**
-- If LLM loading fails (for example, no model download access), generation falls back to a context-based response.
-
-## Notes
-
-- Designed to run locally end-to-end.
-- Main entry point for QA is:
-  - `python src/rag_pipeline.py`
-
 
 ## Streamlit UI
 
@@ -117,4 +98,6 @@ streamlit run app.py
 
 By default the UI calls `http://127.0.0.1:8000/ask`. In the sidebar you can:
 - Switch to **Local** mode to run RAG directly in-process (no API server required).
-- Keep **API** mode and customize the API URL if your server runs elsewhere.
+- Keep **API** mode and customize the API URL.
+- Upload a custom **PDF** for in-session retrieval (auto-indexed with embeddings + FAISS).
+- Inspect retrieved chunk snippets under **Source context** in the conversation view.
