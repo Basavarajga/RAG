@@ -16,7 +16,6 @@ if __package__ in {None, ""}:
 
 from src.embedder import get_embedder
 
-
 BASE_DIR = Path(__file__).resolve().parents[1]
 DATA_DIR = BASE_DIR / "data"
 INDEX_PATH = DATA_DIR / "finance.index"
@@ -48,15 +47,27 @@ class HybridRetriever:
         self.tokenized_docs = [doc.lower().split() for doc in self.docs]
         self.bm25 = BM25Okapi(self.tokenized_docs)
 
+        # FIX: build a lookup from id -> positional index in self.mapping
+        # so BM25 scores (which are positional) are correctly matched
+        self._id_to_pos: Dict[str, int] = {row["id"]: i for i, row in enumerate(self.mapping)}
+
     def dense_search(self, query: str, top_k: int = 10) -> List[Dict[str, float]]:
-        query_vector = self.model.encode([query], normalize_embeddings=True, convert_to_numpy=True).astype("float32")
+        query_vector = self.model.encode(
+            [query], normalize_embeddings=True, convert_to_numpy=True
+        ).astype("float32")
         scores, indices = self.index.search(query_vector, top_k)
         results: List[Dict[str, float]] = []
         for idx, score in zip(indices[0], scores[0]):
             if idx < 0:
                 continue
             row = self.mapping[idx]
-            results.append({"id": row["id"], "title": row["title"], "text": row["text"], "dense_score": float(score)})
+            results.append({
+                "id": row["id"],
+                "title": row["title"],
+                "text": row["text"],
+                "dense_score": float(score),
+                "_pos": idx,  # store positional index for safe BM25 lookup
+            })
         return results
 
     def bm25_search(self, query: str) -> np.ndarray:
@@ -77,14 +88,17 @@ class HybridRetriever:
         dense_scores = np.array([item["dense_score"] for item in dense_candidates], dtype="float32")
         dense_norm = minmax_scale(dense_scores)
 
-        bm25_subset = np.array([bm25_scores[int(item["id"])] for item in dense_candidates], dtype="float32")
+        # FIX: use _pos (positional index) instead of int(item["id"]) for BM25 lookup
+        bm25_subset = np.array(
+            [bm25_scores[item["_pos"]] for item in dense_candidates], dtype="float32"
+        )
         bm25_norm = minmax_scale(bm25_subset)
 
         hybrid = alpha * dense_norm + (1 - alpha) * bm25_norm
 
         ranked = []
         for item, score, bm in zip(dense_candidates, hybrid, bm25_subset):
-            row = dict(item)
+            row = {k: v for k, v in item.items() if k != "_pos"}  # strip internal field
             row["bm25_score"] = float(bm)
             row["hybrid_score"] = float(score)
             ranked.append(row)
