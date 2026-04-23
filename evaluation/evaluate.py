@@ -6,15 +6,13 @@ import sys
 from pathlib import Path
 from typing import Dict, List
 
-
 # Make src importable when running: python evaluation/evaluate.py
 BASE_DIR = Path(__file__).resolve().parents[1]
-SRC_DIR = BASE_DIR / "src"
-if str(SRC_DIR) not in sys.path:
-    sys.path.insert(0, str(SRC_DIR))
+if str(BASE_DIR) not in sys.path:
+    sys.path.insert(0, str(BASE_DIR))
 
-from retriever import HybridRetriever  # noqa: E402
-
+# FIX: use fully-qualified import consistent with the rest of the codebase
+from src.retriever import HybridRetriever  # noqa: E402
 
 EVAL_SET: List[Dict[str, object]] = [
     {
