@@ -94,12 +94,16 @@ def answer_from_uploaded_pdf(query: str) -> Tuple[str, List[Dict[str, str]]]:
     if not results:
         raise ValueError("No relevant context found in uploaded PDF.")
 
-    top_context = results[0]["text"]
-    answer = f"Based on uploaded PDF context: {top_context[:700]}"
+    # FIX: route through the LLM via generate_answer() instead of raw string slice
+    rag = get_local_rag()
+    contexts = [r["text"] for r in results]
+    answer = rag.generate_answer(query, contexts)
     return answer, results
 
 
-def run_query(query: str, mode: str, api_url: str) -> tuple[Optional[str], Optional[str], Optional[List[Dict[str, str]]]]:
+def run_query(
+    query: str, mode: str, api_url: str
+) -> tuple[Optional[str], Optional[str], Optional[List[Dict[str, str]]]]:
     try:
         if st.session_state.get("uploaded_index") is not None:
             answer, contexts = answer_from_uploaded_pdf(query)
@@ -110,7 +114,7 @@ def run_query(query: str, mode: str, api_url: str) -> tuple[Optional[str], Optio
         return ask_via_local_model(query), None, None
     except requests.RequestException as exc:
         return None, f"API request failed: {exc}", None
-    except Exception as exc:  # keep UI resilient for demo usage
+    except Exception as exc:
         return None, f"Failed to answer query: {exc}", None
 
 
@@ -133,8 +137,24 @@ st.caption("Ask finance questions using either the API or local in-process RAG p
 
 with st.sidebar:
     st.header("Settings")
-    mode = st.radio("Answer source", ["API", "Local"], help="Use API mode if uvicorn is running, or Local mode for direct in-app inference.")
+    mode = st.radio(
+        "Answer source",
+        ["API", "Local"],
+        help="Use API mode if uvicorn is running, or Local mode for direct in-app inference.",
+    )
     api_url = st.text_input("API URL", value=DEFAULT_API_URL, disabled=(mode != "API"))
+
+    st.markdown("---")
+    st.subheader("Retrieval tuning")
+    alpha = st.slider(
+        "Hybrid alpha (dense vs BM25)",
+        min_value=0.0,
+        max_value=1.0,
+        value=0.6,
+        step=0.05,
+        help="1.0 = pure dense, 0.0 = pure BM25",
+    )
+    st.session_state["hybrid_alpha"] = alpha
 
     st.markdown("---")
     st.subheader("Upload custom PDF")
@@ -174,7 +194,11 @@ with st.sidebar:
         if st.button(example, key=f"example_{idx}"):
             st.session_state["query_input"] = example
 
-query = st.text_input("Ask a question", key="query_input", placeholder="e.g., Why does inflation reduce purchasing power?")
+query = st.text_input(
+    "Ask a question",
+    key="query_input",
+    placeholder="e.g., Why does inflation reduce purchasing power?",
+)
 
 col1, col2 = st.columns([1, 1])
 with col1:
@@ -198,7 +222,12 @@ if submit_clicked:
         else:
             response_mode = "Uploaded PDF" if contexts else mode
             st.session_state.chat_history.append(
-                {"query": clean_query, "answer": answer, "mode": response_mode, "contexts": contexts or []}
+                {
+                    "query": clean_query,
+                    "answer": answer,
+                    "mode": response_mode,
+                    "contexts": contexts or [],
+                }
             )
 
 if st.session_state.chat_history:
