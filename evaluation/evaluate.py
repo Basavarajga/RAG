@@ -1,4 +1,4 @@
-"""Simple retrieval evaluation for the finance RAG retriever."""
+"""Simple retrieval evaluation for the retail policy RAG retriever."""
 
 from __future__ import annotations
 
@@ -6,30 +6,28 @@ import sys
 from pathlib import Path
 from typing import Dict, List
 
-# Make src importable when running: python evaluation/evaluate.py
 BASE_DIR = Path(__file__).resolve().parents[1]
 if str(BASE_DIR) not in sys.path:
     sys.path.insert(0, str(BASE_DIR))
 
-# FIX: use fully-qualified import consistent with the rest of the codebase
 from src.retriever import HybridRetriever  # noqa: E402
 
 EVAL_SET: List[Dict[str, object]] = [
     {
-        "query": "What is inflation and how does it affect purchasing power?",
-        "keywords": ["inflation", "purchasing power"],
+        "query": "What is the return policy for groceries?",
+        "keywords": ["return", "refund", "receipt"],
     },
     {
-        "query": "How do dividends relate to stock ownership?",
-        "keywords": ["dividend", "shareholder"],
+        "query": "What benefits do rewards members get?",
+        "keywords": ["rewards", "coupons", "member"],
     },
     {
-        "query": "What does a central bank do in monetary policy?",
-        "keywords": ["central bank", "monetary policy"],
+        "query": "How do delivery substitutions work?",
+        "keywords": ["delivery", "substitutions", "pickup"],
     },
     {
-        "query": "Why do bond prices change when interest rates change?",
-        "keywords": ["bond", "interest rate"],
+        "query": "How can customer support help with digital coupons?",
+        "keywords": ["customer support", "digital coupons", "account"],
     },
 ]
 
@@ -53,7 +51,7 @@ def evaluate(k: int = 3) -> None:
     retriever = HybridRetriever()
 
     scores = []
-    print(f"Evaluating retrieval with Precision@{k}\n")
+    print(f"Evaluating retail policy retrieval with Precision@{k}\n")
 
     for sample in EVAL_SET:
         query = str(sample["query"])

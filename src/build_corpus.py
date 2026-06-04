@@ -1,4 +1,4 @@
-"""Build a finance-focused text corpus from local files."""
+"""Build a retail policy corpus from local files."""
 
 from __future__ import annotations
 
@@ -20,12 +20,12 @@ from src.text_processing import (
 
 BASE_DIR = Path(__file__).resolve().parents[1]
 DATA_DIR = BASE_DIR / "data"
-RAW_DOCS_DIR = DATA_DIR / "raw_docs"
-CORPUS_PATH = DATA_DIR / "finance_corpus.json"
+RAW_DOCS_DIR = DATA_DIR / "raw_docs" / "policies"
+CORPUS_PATH = DATA_DIR / "retail_policy_corpus.json"
 
 
 def read_document_text(path: Path) -> str:
-    """Load text from one supported document."""
+    """Load text from one supported retail policy document."""
     suffix = path.suffix.lower()
     if suffix == ".pdf":
         return extract_text_from_pdf(path)
@@ -35,7 +35,7 @@ def read_document_text(path: Path) -> str:
 
 
 def build_corpus(raw_docs_dir: Path = RAW_DOCS_DIR) -> List[Dict[str, str]]:
-    """Build chunked corpus records from local TXT/PDF files."""
+    """Build chunked corpus records from retail policy TXT/PDF files."""
     corpus: List[Dict[str, str]] = []
     doc_id = 0
 
@@ -48,14 +48,22 @@ def build_corpus(raw_docs_dir: Path = RAW_DOCS_DIR) -> List[Dict[str, str]]:
             print(f"[WARN] Failed to read '{path.name}': {exc}")
             continue
 
-        chunks = split_into_chunks(text)
+        chunks = split_into_chunks(text, chunk_words=220, overlap_words=35, min_words=40)
         if not chunks:
             print(f"[WARN] No chunks produced for: {path.name}")
             continue
 
-        title = path.stem
-        for chunk in chunks:
-            corpus.append({"id": str(doc_id), "title": title, "text": chunk})
+        title = path.stem.replace("_", " ").title()
+        for chunk_index, chunk in enumerate(chunks):
+            corpus.append(
+                {
+                    "id": str(doc_id),
+                    "title": title,
+                    "source": str(path.relative_to(BASE_DIR)),
+                    "chunk_id": chunk_index,
+                    "text": chunk,
+                }
+            )
             doc_id += 1
 
         print(f"[INFO] Added {len(chunks)} chunks from: {path.name}")

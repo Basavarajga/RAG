@@ -1,111 +1,106 @@
-"""End-to-end finance RAG pipeline."""
+"""End-to-end retail policy RAG pipeline."""
 
 from __future__ import annotations
 
 import argparse
 import sys
 from pathlib import Path
-from typing import List
+from typing import Any, Dict, List
 
-import torch
-from transformers import AutoModelForCausalLM, AutoTokenizer
+if __package__ in {None, ""}:
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from src.retriever import HybridRetriever
+from src.build_corpus import build_corpus, save_corpus
+from src.embeddings import build_faiss_index, create_embeddings, save_artifacts
+from src.retriever import INDEX_PATH, MAPPING_PATH, HybridRetriever
 
 
 BASE_DIR = Path(__file__).resolve().parents[1]
-LLM_NAME = "TinyLlama/TinyLlama-1.1B-Chat-v1.0"
-NOT_FOUND_MESSAGE = "Not found in knowledge base."
+NOT_FOUND_MESSAGE = "I could not find that in the retail policy knowledge base."
 
 
-class FinanceRAG:
-    """Finance QA pipeline using hybrid retrieval + lightweight generation."""
+def ensure_policy_index() -> None:
+    """Create the retail policy corpus and FAISS artifacts when missing."""
+    if INDEX_PATH.exists() and MAPPING_PATH.exists():
+        return
 
-    def __init__(self, llm_name: str = LLM_NAME) -> None:
+    corpus = build_corpus()
+    if not corpus:
+        raise ValueError("No retail policy documents found under data/raw_docs/policies/.")
+
+    save_corpus(corpus)
+    embeddings = create_embeddings([row["text"] for row in corpus])
+    index = build_faiss_index(embeddings)
+    save_artifacts(corpus, embeddings, index)
+
+
+class RetailPolicyRAG:
+    """Retail policy QA pipeline using the existing FAISS + BM25 hybrid retriever."""
+
+    def __init__(self) -> None:
+        ensure_policy_index()
         self.retriever = HybridRetriever()
-        self.llm_name = llm_name
-        self.tokenizer = None
-        self.model = None
-        self._load_generation_model()
-
-    def _load_generation_model(self) -> None:
-        """Load a lightweight open-source LLM for answer generation."""
-        try:
-            self.tokenizer = AutoTokenizer.from_pretrained(self.llm_name)
-            self.model = AutoModelForCausalLM.from_pretrained(
-                self.llm_name,
-                torch_dtype=torch.float16 if torch.cuda.is_available() else torch.float32,
-                device_map="auto" if torch.cuda.is_available() else None,
-            )
-        except Exception as exc:
-            print(f"[WARN] Could not load generation model '{self.llm_name}': {exc}")
-            print("[WARN] Falling back to extractive context response.")
-            self.tokenizer = None
-            self.model = None
 
     @staticmethod
-    def _build_prompt(query: str, contexts: List[str]) -> str:
-        joined_context = "\n\n".join(f"Context {idx+1}: {ctx}" for idx, ctx in enumerate(contexts))
-        return (
-            "You are a helpful financial assistant. "
-            "Answer the user using only the context. "
-            "If the context is insufficient, say 'Not found in knowledge base.'\n\n"
-            f"{joined_context}\n\n"
-            f"Question: {query}\n"
-            "Answer:"
-        )
-
-    def generate_answer(self, query: str, contexts: List[str]) -> str:
+    def _compose_extractive_answer(query: str, contexts: List[Dict[str, Any]]) -> str:
+        """Return a concise grounded answer from retrieved policy chunks."""
         if not contexts:
             return NOT_FOUND_MESSAGE
 
-        if self.model is None or self.tokenizer is None:
-            # Graceful fallback when model download is unavailable.
-            return f"Based on retrieved context: {contexts[0][:500]}"
+        top = contexts[0]
+        title = top.get("title", "Retail policy")
+        text = str(top.get("text", "")).strip()
+        if not text:
+            return NOT_FOUND_MESSAGE
 
-        prompt = self._build_prompt(query, contexts)
-        inputs = self.tokenizer(prompt, return_tensors="pt", truncation=True, max_length=2048)
+        # Keep the demo deterministic and local by summarizing the best retrieved chunk.
+        sentences = [part.strip() for part in text.replace("\n", " ").split(". ") if part.strip()]
+        summary = ". ".join(sentences[:3]).strip()
+        if summary and not summary.endswith("."):
+            summary += "."
 
-        if torch.cuda.is_available():
-            inputs = {k: v.to("cuda") for k, v in inputs.items()}
+        return f"According to {title}: {summary}"
 
-        with torch.no_grad():
-            output = self.model.generate(
-                **inputs,
-                max_new_tokens=160,
-                temperature=0.2,
-                do_sample=True,
-                pad_token_id=self.tokenizer.eos_token_id,
-            )
-
-        decoded = self.tokenizer.decode(output[0], skip_special_tokens=True)
-        answer = decoded.split("Answer:")[-1].strip()
-        return answer if answer else NOT_FOUND_MESSAGE
+    def answer_with_sources(self, query: str, top_k: int = 3, alpha: float = 0.6) -> Dict[str, Any]:
+        """Answer a retail policy query with retrieved source chunks."""
+        results = self.retriever.retrieve(query, top_k=top_k, alpha=alpha)
+        answer = self._compose_extractive_answer(query, results)
+        sources = [
+            {
+                "id": item.get("id"),
+                "title": item.get("title"),
+                "source": item.get("source"),
+                "chunk_id": item.get("chunk_id"),
+                "text": item.get("text"),
+                "score": item.get("hybrid_score", item.get("dense_score", 0.0)),
+                "dense_score": item.get("dense_score"),
+                "bm25_score": item.get("bm25_score"),
+            }
+            for item in results
+        ]
+        return {"answer": answer, "sources": sources}
 
     def answer(self, query: str, top_k: int = 3) -> str:
-        results = self.retriever.retrieve(query, top_k=top_k)
-        if not results:
-            return NOT_FOUND_MESSAGE
+        """Backward-compatible string answer method."""
+        return self.answer_with_sources(query, top_k=top_k)["answer"]
 
-        contexts = [item["text"] for item in results if item.get("text")]
-        if not contexts:
-            return NOT_FOUND_MESSAGE
 
-        return self.generate_answer(query, contexts)
+# Backward-compatible alias for older imports.
+FinanceRAG = RetailPolicyRAG
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Run the finance RAG QA pipeline.")
+    parser = argparse.ArgumentParser(description="Run the retail policy RAG QA pipeline.")
     parser.add_argument("-q", "--question", help="Single question to answer in non-interactive mode.")
     args = parser.parse_args()
 
-    rag = FinanceRAG()
+    rag = RetailPolicyRAG()
 
     if args.question:
         print(f"Answer: {rag.answer(args.question.strip())}")
         return
 
-    print("Finance RAG ready. Type a question (or 'exit').")
+    print("Retail Policy RAG ready. Type a question (or 'exit').")
 
     while True:
         try:
