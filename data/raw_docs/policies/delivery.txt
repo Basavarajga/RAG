@@ -1,3 +1,49 @@
-Delivery and Pickup Policy FAQ
+Delivery and Pickup Policy
 
-Customers can place delivery or pickup orders through the website or mobile app by selecting a store, choosing a time window, and adding eligible products to the cart. Pickup orders are brought to a designated pickup area after the customer checks in. Delivery orders are delivered to the address selected during checkout. Availability, fees, substitutions, minimum order amounts, and time windows vary by location. Customers can allow substitutions, reject substitutions, or add item notes. If an item is unavailable, the shopper may provide an approved substitute or remove the item from the order. Temperature-sensitive items are handled with care, but customers should retrieve pickup orders promptly. Missing, damaged, or incorrect delivery items can be reported through order help for refund or replacement review.
+Overview of Delivery Services
+
+Customers can place delivery orders through the website, mobile application, or participating third-party delivery platforms. Delivery services are designed to provide convenient access to groceries, household products, pharmacy items, and other eligible merchandise. Availability varies based on location, inventory, operational capacity, and local regulations. Customers can view available delivery options during checkout and select services that best meet their needs.
+
+Same-Day Delivery
+
+Same-day delivery may be available for eligible orders placed before established cut-off times. Availability depends on store operations, order volume, inventory levels, weather conditions, and driver availability. Customers are encouraged to place orders early during peak periods such as holidays and weekends. Same-day delivery options may not be available in all service areas.
+
+Scheduled Delivery Windows
+
+Customers may select preferred delivery windows when placing orders. Delivery windows are offered based on operational capacity and service availability. While every effort is made to meet selected delivery times, delays may occur due to traffic conditions, severe weather, technical issues, or unexpected operational challenges. Customers receive updates regarding order status through available communication channels.
+
+Pickup Services
+
+Curbside pickup and in-store pickup services allow customers to collect orders without browsing store aisles. Pickup locations are clearly designated at participating stores. Customers receive notifications when orders are ready for collection. Identification or order confirmation details may be required before orders are released. Pickup services are intended to provide convenience and reduce shopping time.
+
+Order Processing
+
+Orders are reviewed and processed after submission. Store associates select products based on availability and quality standards. Customers may receive notifications regarding substitutions, unavailable products, or fulfillment updates. Processing times vary depending on order size, inventory conditions, and operational requirements. Orders typically enter fulfillment shortly after confirmation.
+
+Substitution Preferences
+
+Customers may specify substitution preferences when placing orders. If requested products are unavailable, store associates attempt to select similar alternatives based on customer preferences. Customers can choose to allow substitutions, decline substitutions entirely, or provide specific replacement instructions. Substitution options help ensure customers receive needed products despite inventory fluctuations.
+
+Inventory Availability
+
+Product availability may change between order placement and fulfillment. High-demand products, seasonal merchandise, and promotional items may become unavailable due to inventory fluctuations. Store associates attempt to provide suitable alternatives whenever possible. Inventory information displayed online is updated regularly but may not always reflect real-time stock levels.
+
+Delivery Fees and Charges
+
+Delivery fees vary depending on location, order value, delivery speed, promotional offers, and membership status. Certain promotions may provide free or discounted delivery services. Applicable fees are displayed during checkout before payment confirmation. Additional charges may apply for premium delivery windows or specialized services where available.
+
+Order Modifications
+
+Customers may modify orders before fulfillment begins. Once order preparation starts, modification options may be limited. Customers can review available options through their account dashboard or customer support channels. Changes to quantities, product selections, delivery times, and contact information may be possible depending on fulfillment status.
+
+Order Cancellation
+
+Orders may be canceled before fulfillment begins. Cancellation eligibility depends on processing status and operational requirements. Refund processing times vary according to payment methods and financial institutions. Customers should submit cancellation requests as early as possible to maximize eligibility.
+
+Delivery Tracking
+
+Customers can monitor delivery progress through the website or mobile application. Tracking information may include estimated arrival times, fulfillment status, driver updates, and completed delivery confirmations. Real-time notifications help customers prepare for order arrival and improve overall delivery transparency.
+
+Customer Support and Delivery Assistance
+
+Customer support representatives assist with delivery concerns, missing items, delayed orders, substitutions, damaged products, and general service questions. Customers are encouraged to report issues promptly. Feedback regarding delivery experiences helps improve service quality and operational performance. Support resources are available through online, mobile, and in-store channels.
