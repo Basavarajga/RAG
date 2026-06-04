@@ -48,9 +48,11 @@ class RetailPolicyRAG:
                 model="TinyLlama/TinyLlama-1.1B-Chat-v1.0",
                 device_map="auto",
             )
-        except Exception:
+            print("[INFO] TinyLlama loaded successfully")
+        except Exception as e:
+            print(f"[ERROR] TinyLlama failed: {e}")
             self.generator = None
-
+    
     @staticmethod
     def _compose_fallback_extractive_answer(contexts: List[Dict[str, Any]]) -> str:
         """Return the original deterministic summary from retrieved policy chunks."""
