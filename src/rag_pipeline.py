@@ -94,6 +94,9 @@ Rules:
 - Do not explain your reasoning.
 - Summarize the information.
 - Keep the answer customer-friendly.
+- If the answer is not explicitly present in the context, respond exactly:
+"I could not find that information in the knowledge base."
+- Do not use outside knowledge.
 
 Context:
 {context}
@@ -128,6 +131,22 @@ Answer:
     def answer_with_sources(self, query: str, top_k: int = 3, alpha: float = 0.6) -> Dict[str, Any]:
         """Answer a retail policy query with retrieved source chunks."""
         results = self.retriever.retrieve(query, top_k=top_k, alpha=alpha)
+        # Confidence check
+        if not results:
+            return {
+                "answer": "I could not find that information in the retail knowledge base.",
+                "sources": []
+            }
+
+        top_score = results[0].get("hybrid_score", 0.0)
+        print(f"[DEBUG] Top retrieval score: {top_score}")
+
+        if top_score < 0.30:
+            return {
+                "answer": "I could not find that information in the retail knowledge base.",
+                "sources": []
+            }
+
         answer = self._compose_extractive_answer(query, results)
         sources = [
             {
