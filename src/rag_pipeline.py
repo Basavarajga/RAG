@@ -7,6 +7,8 @@ import sys
 from pathlib import Path
 from typing import Any, Dict, List
 
+from transformers import pipeline
+
 if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
@@ -40,10 +42,18 @@ class RetailPolicyRAG:
     def __init__(self) -> None:
         ensure_policy_index()
         self.retriever = HybridRetriever()
+        try:
+            self.generator = pipeline(
+                "text-generation",
+                model="TinyLlama/TinyLlama-1.1B-Chat-v1.0",
+                device_map="auto",
+            )
+        except Exception:
+            self.generator = None
 
     @staticmethod
-    def _compose_extractive_answer(query: str, contexts: List[Dict[str, Any]]) -> str:
-        """Return a concise grounded answer from retrieved policy chunks."""
+    def _compose_fallback_extractive_answer(contexts: List[Dict[str, Any]]) -> str:
+        """Return the original deterministic summary from retrieved policy chunks."""
         if not contexts:
             return NOT_FOUND_MESSAGE
 
@@ -53,13 +63,62 @@ class RetailPolicyRAG:
         if not text:
             return NOT_FOUND_MESSAGE
 
-        # Keep the demo deterministic and local by summarizing the best retrieved chunk.
         sentences = [part.strip() for part in text.replace("\n", " ").split(". ") if part.strip()]
         summary = ". ".join(sentences[:3]).strip()
         if summary and not summary.endswith("."):
             summary += "."
 
         return f"According to {title}: {summary}"
+
+    def _compose_extractive_answer(self, query: str, contexts: List[Dict[str, Any]]) -> str:
+        """Return a concise grounded answer from retrieved policy chunks."""
+        if not contexts:
+            return NOT_FOUND_MESSAGE
+
+        if self.generator is None:
+            return self._compose_fallback_extractive_answer(contexts)
+
+        context = "\n\n".join(
+            item.get("text", "")
+            for item in contexts[:3]
+        )
+        prompt = f"""
+You are a retail customer support assistant.
+
+Use ONLY the provided context.
+
+Rules:
+- Answer in at most 3 concise bullet points.
+- Summarize the relevant information.
+- Do not copy the context verbatim.
+- Keep the answer short and customer-friendly.
+- If the answer is not present in the context, say so.
+
+Context:
+{context}
+
+Question:
+{query}
+
+Answer:
+"""
+
+        try:
+            result = self.generator(
+                prompt,
+                max_new_tokens=100,
+                do_sample=False,
+                temperature=0.1,
+            )
+        except Exception:
+            return self._compose_fallback_extractive_answer(contexts)
+
+        generated_text = result[0].get("generated_text", "") if result else ""
+        if generated_text.startswith(prompt):
+            answer = generated_text[len(prompt):].strip()
+        else:
+            answer = generated_text.strip()
+        return answer or self._compose_fallback_extractive_answer(contexts)
 
     def answer_with_sources(self, query: str, top_k: int = 3, alpha: float = 0.6) -> Dict[str, Any]:
         """Answer a retail policy query with retrieved source chunks."""
