@@ -1,0 +1,8 @@
+[
+  {"item": "organic milk", "stock": 27, "aisle": "Dairy", "unit": "half-gallon cartons"},
+  {"item": "bread", "stock": 15, "aisle": "Bakery", "unit": "loaves"},
+  {"item": "coke", "stock": 42, "aisle": "Beverages", "unit": "12-pack cases"},
+  {"item": "eggs", "stock": 33, "aisle": "Dairy", "unit": "dozens"},
+  {"item": "bananas", "stock": 86, "aisle": "Produce", "unit": "bunches"},
+  {"item": "avocados", "stock": 24, "aisle": "Produce", "unit": "each"}
+]

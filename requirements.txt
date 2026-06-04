@@ -8,5 +8,5 @@ fastapi
 uvicorn
 streamlit
 requests
-yfinance
 pypdf
+langchain-core

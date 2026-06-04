@@ -1,4 +1,4 @@
-"""Embedding and FAISS index builder for the finance corpus."""
+"""Embedding and FAISS index builder for the retail policy corpus."""
 
 from __future__ import annotations
 
@@ -18,10 +18,10 @@ from src.embedder import get_embedder
 
 BASE_DIR = Path(__file__).resolve().parents[1]
 DATA_DIR = BASE_DIR / "data"
-CORPUS_PATH = DATA_DIR / "finance_corpus.json"
-EMBEDDINGS_PATH = DATA_DIR / "finance_embeddings.npy"
-INDEX_PATH = DATA_DIR / "finance.index"
-MAPPING_PATH = DATA_DIR / "finance_mapping.json"
+CORPUS_PATH = DATA_DIR / "retail_policy_corpus.json"
+EMBEDDINGS_PATH = DATA_DIR / "retail_policy_embeddings.npy"
+INDEX_PATH = DATA_DIR / "retail_policy.index"
+MAPPING_PATH = DATA_DIR / "retail_policy_mapping.json"
 
 MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
 

@@ -1,4 +1,4 @@
-"""Hybrid retriever for finance RAG (dense + BM25)."""
+"""Hybrid retriever for retail policy RAG (dense + BM25)."""
 
 from __future__ import annotations
 
@@ -18,8 +18,8 @@ from src.embedder import get_embedder
 
 BASE_DIR = Path(__file__).resolve().parents[1]
 DATA_DIR = BASE_DIR / "data"
-INDEX_PATH = DATA_DIR / "finance.index"
-MAPPING_PATH = DATA_DIR / "finance_mapping.json"
+INDEX_PATH = DATA_DIR / "retail_policy.index"
+MAPPING_PATH = DATA_DIR / "retail_policy_mapping.json"
 MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
 
 
@@ -35,7 +35,7 @@ def minmax_scale(values: np.ndarray) -> np.ndarray:
 
 
 class HybridRetriever:
-    """Dense + BM25 hybrid retriever over finance chunks."""
+    """Dense + BM25 hybrid retriever over retail policy chunks."""
 
     def __init__(self, index_path: Path = INDEX_PATH, mapping_path: Path = MAPPING_PATH) -> None:
         self.index = faiss.read_index(str(index_path))
@@ -64,6 +64,8 @@ class HybridRetriever:
             results.append({
                 "id": row["id"],
                 "title": row["title"],
+                "source": row.get("source"),
+                "chunk_id": row.get("chunk_id"),
                 "text": row["text"],
                 "dense_score": float(score),
                 "_pos": idx,  # store positional index for safe BM25 lookup
@@ -109,7 +111,7 @@ class HybridRetriever:
 
 if __name__ == "__main__":
     retriever = HybridRetriever()
-    sample_query = "How do interest rates affect bond prices?"
+    sample_query = "What is the return policy?"
     results = retriever.retrieve(sample_query, top_k=3)
     for i, item in enumerate(results, start=1):
         print(f"[{i}] {item['title']} | hybrid={item['hybrid_score']:.4f}")

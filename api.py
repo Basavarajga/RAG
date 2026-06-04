@@ -1,39 +1,38 @@
 from __future__ import annotations
 
 from functools import lru_cache
-from typing import Optional
+from typing import Any, Dict, List
 
-from fastapi import FastAPI, Query
-from pydantic import BaseModel
+from fastapi import FastAPI
+from pydantic import BaseModel, Field
 
-from src.rag_pipeline import FinanceRAG
+from src.agent import RetailAgent
 
-app = FastAPI(title="Finance RAG API")
+app = FastAPI(title="Retail AI Assistant API", version="1.0.0")
 
 
-# FIX: lazy-load FinanceRAG so the heavy model + FAISS index are only
-# initialised on the first actual query, not at import/startup time.
 @lru_cache(maxsize=1)
-def get_rag() -> FinanceRAG:
-    return FinanceRAG()
+def get_agent() -> RetailAgent:
+    """Lazy-load the agent so startup stays fast."""
+    return RetailAgent()
 
 
-class QueryRequest(BaseModel):
-    query: str
+class AskRequest(BaseModel):
+    question: str = Field(..., examples=["Is organic milk available and what is the return policy?"])
+
+
+class AskResponse(BaseModel):
+    answer: str
+    sources: List[Dict[str, Any]] = Field(default_factory=list)
+    tools_used: List[str] = Field(default_factory=list)
+    reasoning_steps: List[str] = Field(default_factory=list)
 
 
 @app.get("/")
-def home():
-    return {"message": "Finance RAG API is running"}
+def home() -> Dict[str, str]:
+    return {"message": "Retail AI Assistant API is running"}
 
 
-@app.get("/ask")
-def ask(query: str = Query(...)):
-    answer = get_rag().answer(query)
-    return {"query": query, "answer": answer}
-
-
-@app.post("/ask")
-def ask_post(request: QueryRequest):
-    answer = get_rag().answer(request.query)
-    return {"query": request.query, "answer": answer}
+@app.post("/ask", response_model=AskResponse)
+def ask_post(request: AskRequest) -> Dict[str, Any]:
+    return get_agent().invoke(request.question)
