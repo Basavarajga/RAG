@@ -97,6 +97,9 @@ Rules:
 - If the answer is not explicitly present in the context, respond exactly:
 "I could not find that information in the knowledge base."
 - Do not use outside knowledge.
+- Answer the customer's question directly.
+- Prioritize the most relevant information first.
+- Do not simply summarize the context.
 
 Context:
 {context}
@@ -139,7 +142,6 @@ Answer:
             }
 
         top_score = results[0].get("hybrid_score", 0.0)
-        print(f"[DEBUG] Top retrieval score: {top_score}")
 
         if top_score < 0.30:
             return {
