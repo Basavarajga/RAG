@@ -7,8 +7,8 @@ import sys
 from pathlib import Path
 from typing import Any, Dict, List
 
-from transformers import pipeline
-
+from groq import Groq
+import os
 if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
@@ -43,15 +43,13 @@ class RetailPolicyRAG:
         ensure_policy_index()
         self.retriever = HybridRetriever()
         try:
-            self.generator = pipeline(
-                "text-generation",
-                model="TinyLlama/TinyLlama-1.1B-Chat-v1.0",
-                device_map="auto",
+            self.client = Groq(
+                api_key=os.getenv("GROQ_API_KEY")
             )
-            print("[INFO] TinyLlama loaded successfully")
+            print("[INFO] Groq client initialized")
         except Exception as e:
-            print(f"[ERROR] TinyLlama failed: {e}")
-            self.generator = None
+            print(f"[ERROR] Groq initialization failed: {e}")
+            self.client = None
     
     @staticmethod
     def _compose_fallback_extractive_answer(contexts: List[Dict[str, Any]]) -> str:
@@ -77,9 +75,8 @@ class RetailPolicyRAG:
         if not contexts:
             return NOT_FOUND_MESSAGE
 
-        if self.generator is None:
+        if self.client is None:
             return self._compose_fallback_extractive_answer(contexts)
-
         context = "\n\n".join(
             item.get("text", "")
             for item in contexts[:3]
@@ -106,22 +103,26 @@ Answer:
 """
 
         try:
-            result = self.generator(
-                prompt,
-                max_new_tokens=100,
-                do_sample=False,
+            response = self.client.chat.completions.create(
+                model="llama-3.1-8b-instant",
+                messages=[
+                    {
+                        "role": "user",
+                        "content": prompt
+                    }
+                ],
                 temperature=0.1,
+                max_tokens=100,
             )
-        except Exception:
+
+            generated_text = response.choices[0].message.content
+        except Exception as e:
+            print(f"[ERROR] Generation failed: {e}")
             return self._compose_fallback_extractive_answer(contexts)
 
-        generated_text = result[0].get("generated_text", "") if result else ""
-        if generated_text.startswith(prompt):
-            answer = generated_text[len(prompt):].strip()
-        else:
-            answer = generated_text.strip()
-        return answer or self._compose_fallback_extractive_answer(contexts)
+        answer = generated_text.strip()
 
+        return answer or self._compose_fallback_extractive_answer(contexts)
     def answer_with_sources(self, query: str, top_k: int = 3, alpha: float = 0.6) -> Dict[str, Any]:
         """Answer a retail policy query with retrieved source chunks."""
         results = self.retriever.retrieve(query, top_k=top_k, alpha=alpha)
