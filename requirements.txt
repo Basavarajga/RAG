@@ -10,3 +10,4 @@ streamlit
 requests
 pypdf
 langchain-core
+accelerate
