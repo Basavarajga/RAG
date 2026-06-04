@@ -185,17 +185,17 @@ def main() -> None:
         print(f"Answer: {rag.answer(args.question.strip())}")
         return
 
-    print("Retail Policy RAG ready. Type a question (or 'exit').")
+    print("Retail Mind ready. Type a question (or 'exit').")
 
     while True:
         try:
             query = input("\nQuestion: ").strip()
         except EOFError:
-            print("\nGoodbye!")
+            print("\nThank you, visit again")
             break
 
         if query.lower() in {"exit", "quit"}:
-            print("Goodbye!")
+            print("Thank you, visit again")
             break
 
         response = rag.answer(query)
