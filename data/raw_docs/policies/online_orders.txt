@@ -1,0 +1,41 @@
+Online Orders and Account Support
+
+Account Creation
+
+Customers can create online accounts through the website or mobile application. Creating an account allows customers to place orders, manage preferences, track purchases, and access personalized offers. During registration, customers may be required to provide contact information, delivery addresses, and account credentials. Accurate information helps ensure successful order fulfillment and account security.
+
+Account Login and Security
+
+Customers are responsible for maintaining the confidentiality of account credentials. Strong passwords and available security features are recommended. Account access may be temporarily restricted after multiple unsuccessful login attempts. Customers should immediately report unauthorized account activity. Security measures are regularly reviewed to protect customer information and maintain account integrity.
+
+Password Reset and Recovery
+
+Customers who forget their passwords can use password recovery tools available through the website or mobile application. Password reset instructions may be delivered through email or other verified communication methods. Customers should ensure account contact information remains current to avoid delays in recovery processes. Additional verification may be required to protect account security.
+
+Order Placement
+
+Customers can browse products, add items to their carts, select delivery or pickup options, and complete purchases through online ordering systems. Product availability, pricing, and promotional offers are displayed during shopping sessions. Orders are confirmed after successful payment authorization and order review. Customers receive confirmation notifications once orders are submitted.
+
+Order History and Digital Receipts
+
+Order history is available through customer accounts and allows customers to review previous purchases. Digital receipts provide transaction details including purchased items, payment methods, discounts, taxes, and fulfillment information. Customers may use digital receipts for budgeting, returns, reimbursement requests, and account record keeping.
+
+Order Modifications
+
+Customers may request modifications to orders before fulfillment begins. Changes may include quantity adjustments, item substitutions, delivery instructions, pickup preferences, and contact information updates. Modification availability depends on fulfillment status and operational requirements. Once fulfillment starts, changes may become limited or unavailable.
+
+Order Cancellation
+
+Customers may cancel eligible orders before fulfillment begins. Cancellation requests can be submitted through account management tools or customer support channels. Refund processing depends on payment methods, order status, and applicable policies. Customers are encouraged to submit cancellation requests as early as possible to maximize eligibility.
+
+Payment Management
+
+Customers may manage saved payment methods through secure account settings. Supported payment options may include credit cards, debit cards, digital wallets, and other approved payment methods. Payment information is protected through applicable security measures. Customers should review payment details carefully before completing transactions.
+
+Communication Preferences
+
+Customers may customize preferences regarding promotional messages, order notifications, delivery updates, and marketing communications. Preference settings are available through account management tools. Adjusting communication settings helps ensure customers receive relevant information while minimizing unwanted notifications.
+
+Customer Support and Technical Assistance
+
+Support representatives assist customers with account access issues, password recovery, order concerns, payment questions, and technical problems. Customers may seek assistance through online help resources, customer support channels, or participating store locations. The goal is to provide a reliable and user-friendly digital shopping experience while maintaining account security and operational efficiency.
