@@ -1,0 +1,21 @@
+﻿.venv/
+**pycache**/
+*.pyc
+
+# Python cache
+
+src/**pycache**/
+evaluation/**pycache**/
+
+# Generated embeddings and indexes
+
+data/*.npy
+data/*.index
+
+# OS files
+
+.DS_Store
+Thumbs.db
+
+
+data/raw_docs/
