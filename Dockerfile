@@ -1,0 +1,29 @@
+FROM python:3.11-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    FINANCE_RAG_API_URL=http://127.0.0.1:8000/ask \
+    STREAMLIT_SERVER_HEADLESS=true
+
+WORKDIR /app
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends bash curl \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY requirements.txt ./
+RUN pip install --upgrade pip \
+    && pip install -r requirements.txt
+
+COPY . .
+
+# Build the FAISS index from the checked-in corpus so the container is ready to serve.
+RUN python src/embeddings.py
+
+EXPOSE 8000 8501
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
+    CMD curl -fsS http://127.0.0.1:8000/ >/dev/null || exit 1
+
+CMD ["bash", "-c", "set -euo pipefail; uvicorn api:app --host 0.0.0.0 --port ${API_PORT:-8000} & api_pid=$!; streamlit run app.py --server.address=0.0.0.0 --server.port=${STREAMLIT_PORT:-8501} & ui_pid=$!; trap 'kill $api_pid $ui_pid 2>/dev/null || true' EXIT; wait -n $api_pid $ui_pid"]
