@@ -1,7 +1,6 @@
 sentence-transformers
 faiss-cpu
 rank_bm25
-transformers
 torch
 numpy
 fastapi
@@ -10,3 +9,4 @@ streamlit
 requests
 yfinance
 pypdf
+groq
