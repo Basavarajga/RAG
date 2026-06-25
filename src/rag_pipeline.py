@@ -6,7 +6,7 @@ import argparse
 import os
 import sys
 from pathlib import Path
-from typing import List
+from typing import Dict, List
 
 from groq import Groq
 
@@ -16,6 +16,31 @@ from src.retriever import HybridRetriever
 BASE_DIR = Path(__file__).resolve().parents[1]
 LLM_NAME = "llama-3.1-8b-instant"
 NOT_FOUND_MESSAGE = "Not found in knowledge base."
+
+
+def build_citations(results: List[Dict[str, object]]) -> List[Dict[str, object]]:
+    """Build de-duplicated answer citations from retrieved chunk metadata."""
+    citations: List[Dict[str, object]] = []
+    seen = set()
+
+    for item in results:
+        filename = str(item.get("title") or item.get("filename") or "Unknown PDF")
+        chunk_number = item.get("chunk_number")
+        if chunk_number is None:
+            chunk_id = item.get("id")
+            try:
+                chunk_number = int(str(chunk_id)) + 1
+            except (TypeError, ValueError):
+                chunk_number = len(citations) + 1
+
+        key = (filename, chunk_number)
+        if key in seen:
+            continue
+
+        seen.add(key)
+        citations.append({"pdf_filename": filename, "chunk_number": chunk_number})
+
+    return citations
 
 
 class FinanceRAG:
@@ -70,15 +95,18 @@ class FinanceRAG:
         return answer if answer else NOT_FOUND_MESSAGE
 
     def answer(self, query: str, top_k: int = 3) -> str:
+        return self.answer_with_citations(query, top_k=top_k)["answer"]
+
+    def answer_with_citations(self, query: str, top_k: int = 3) -> Dict[str, object]:
         results = self.retriever.retrieve(query, top_k=top_k)
         if not results:
-            return NOT_FOUND_MESSAGE
+            return {"answer": NOT_FOUND_MESSAGE, "citations": []}
 
         contexts = [item["text"] for item in results if item.get("text")]
         if not contexts:
-            return NOT_FOUND_MESSAGE
+            return {"answer": NOT_FOUND_MESSAGE, "citations": []}
 
-        return self.generate_answer(query, contexts)
+        return {"answer": self.generate_answer(query, contexts), "citations": build_citations(results)}
 
 
 def main() -> None:
