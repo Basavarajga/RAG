@@ -9,7 +9,7 @@ import requests
 import streamlit as st
 
 from src.embedder import get_embedder
-from src.rag_pipeline import FinanceRAG
+from src.rag_pipeline import FinanceRAG, build_citations
 from src.text_processing import clean_text, split_into_chunks
 
 DEFAULT_API_URL = os.getenv("FINANCE_RAG_API_URL", "http://127.0.0.1:8000/ask")
@@ -26,16 +26,17 @@ def get_embedding_model():
     return get_embedder(MODEL_NAME)
 
 
-def ask_via_api(query: str, api_url: str, timeout_s: float = 30.0) -> str:
+def ask_via_api(query: str, api_url: str, timeout_s: float = 30.0) -> Tuple[str, List[Dict[str, object]]]:
     response = requests.get(api_url, params={"query": query}, timeout=timeout_s)
     response.raise_for_status()
     payload = response.json()
-    return payload.get("answer", "No answer returned by API.")
+    return payload.get("answer", "No answer returned by API."), payload.get("citations", [])
 
 
-def ask_via_local_model(query: str) -> str:
+def ask_via_local_model(query: str) -> Tuple[str, List[Dict[str, object]]]:
     rag = get_local_rag()
-    return rag.answer(query)
+    result = rag.answer_with_citations(query)
+    return str(result["answer"]), result["citations"]
 
 
 def extract_uploaded_pdf_text(file_bytes: bytes) -> str:
@@ -49,7 +50,9 @@ def extract_uploaded_pdf_text(file_bytes: bytes) -> str:
     return clean_text("\n".join(pages))
 
 
-def build_uploaded_pdf_index(file_bytes: bytes, filename: str) -> Tuple[faiss.IndexFlatIP, List[Dict[str, str]]]:
+def build_uploaded_pdf_index(
+    file_bytes: bytes, filename: str
+) -> Tuple[faiss.IndexFlatIP, List[Dict[str, object]]]:
     text = extract_uploaded_pdf_text(file_bytes)
     chunks = split_into_chunks(text)
     if not chunks:
@@ -66,13 +69,16 @@ def build_uploaded_pdf_index(file_bytes: bytes, filename: str) -> Tuple[faiss.In
     index = faiss.IndexFlatIP(vectors.shape[1])
     index.add(vectors)
 
-    rows = [{"id": str(i), "title": filename, "text": chunk} for i, chunk in enumerate(chunks)]
+    rows = [
+        {"id": str(i), "title": filename, "chunk_number": i + 1, "text": chunk}
+        for i, chunk in enumerate(chunks)
+    ]
     return index, rows
 
 
-def retrieve_from_uploaded_pdf(query: str, top_k: int = 3) -> List[Dict[str, str]]:
+def retrieve_from_uploaded_pdf(query: str, top_k: int = 3) -> List[Dict[str, object]]:
     index: Optional[faiss.IndexFlatIP] = st.session_state.get("uploaded_index")
-    rows: List[Dict[str, str]] = st.session_state.get("uploaded_chunks", [])
+    rows: List[Dict[str, object]] = st.session_state.get("uploaded_chunks", [])
     if index is None or not rows:
         return []
 
@@ -80,16 +86,22 @@ def retrieve_from_uploaded_pdf(query: str, top_k: int = 3) -> List[Dict[str, str
     qvec = model.encode([query], normalize_embeddings=True, convert_to_numpy=True).astype("float32")
     scores, indices = index.search(qvec, top_k)
 
-    results: List[Dict[str, str]] = []
+    results: List[Dict[str, object]] = []
     for idx, score in zip(indices[0], scores[0]):
         if idx < 0:
             continue
         row = rows[idx]
-        results.append({"title": row["title"], "text": row["text"], "score": float(score)})
+        results.append({
+            "id": row["id"],
+            "title": row["title"],
+            "chunk_number": row["chunk_number"],
+            "text": row["text"],
+            "score": float(score),
+        })
     return results
 
 
-def answer_from_uploaded_pdf(query: str) -> Tuple[str, List[Dict[str, str]]]:
+def answer_from_uploaded_pdf(query: str) -> Tuple[str, List[Dict[str, object]]]:
     results = retrieve_from_uploaded_pdf(query)
     if not results:
         raise ValueError("No relevant context found in uploaded PDF.")
@@ -103,19 +115,22 @@ def answer_from_uploaded_pdf(query: str) -> Tuple[str, List[Dict[str, str]]]:
 
 def run_query(
     query: str, mode: str, api_url: str
-) -> tuple[Optional[str], Optional[str], Optional[List[Dict[str, str]]]]:
+) -> tuple[Optional[str], Optional[str], Optional[List[Dict[str, object]]], List[Dict[str, object]]]:
     try:
         if st.session_state.get("uploaded_index") is not None:
             answer, contexts = answer_from_uploaded_pdf(query)
-            return answer, None, contexts
+            return answer, None, contexts, build_citations(contexts)
 
         if mode == "API":
-            return ask_via_api(query, api_url), None, None
-        return ask_via_local_model(query), None, None
+            answer, citations = ask_via_api(query, api_url)
+            return answer, None, None, citations
+
+        answer, citations = ask_via_local_model(query)
+        return answer, None, None, citations
     except requests.RequestException as exc:
-        return None, f"API request failed: {exc}", None
+        return None, f"API request failed: {exc}", None, []
     except Exception as exc:
-        return None, f"Failed to answer query: {exc}", None
+        return None, f"Failed to answer query: {exc}", None, []
 
 
 def init_state() -> None:
@@ -215,7 +230,7 @@ if submit_clicked:
         st.warning("Please enter a question first.")
     else:
         with st.spinner("Thinking..."):
-            answer, error, contexts = run_query(clean_query, mode, api_url)
+            answer, error, contexts, citations = run_query(clean_query, mode, api_url)
 
         if error:
             st.error(error)
@@ -227,6 +242,7 @@ if submit_clicked:
                     "answer": answer,
                     "mode": response_mode,
                     "contexts": contexts or [],
+                    "citations": citations,
                 }
             )
 
@@ -235,6 +251,12 @@ if st.session_state.chat_history:
     for entry in reversed(st.session_state.chat_history):
         st.markdown(f"**You:** {entry['query']}")
         st.markdown(f"**Assistant ({entry['mode']}):** {entry['answer']}")
+        if entry.get("citations"):
+            st.markdown("**Sources:**")
+            for citation in entry["citations"]:
+                st.markdown(
+                    f"- {citation['pdf_filename']} — Chunk {citation['chunk_number']}"
+                )
         if entry.get("contexts"):
             with st.expander("Source context"):
                 for i, ctx in enumerate(entry["contexts"], start=1):

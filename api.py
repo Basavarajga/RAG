@@ -29,11 +29,11 @@ def home():
 
 @app.get("/ask")
 def ask(query: str = Query(...)):
-    answer = get_rag().answer(query)
-    return {"query": query, "answer": answer}
+    result = get_rag().answer_with_citations(query)
+    return {"query": query, "answer": result["answer"], "citations": result["citations"]}
 
 
 @app.post("/ask")
 def ask_post(request: QueryRequest):
-    answer = get_rag().answer(request.query)
-    return {"query": request.query, "answer": answer}
+    result = get_rag().answer_with_citations(request.query)
+    return {"query": request.query, "answer": result["answer"], "citations": result["citations"]}
