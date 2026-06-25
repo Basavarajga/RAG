@@ -9,12 +9,16 @@ from pathlib import Path
 from typing import Dict, List
 
 from groq import Groq
+from sentence_transformers import CrossEncoder
 
 from src.retriever import HybridRetriever
 
 
 BASE_DIR = Path(__file__).resolve().parents[1]
 LLM_NAME = "llama-3.1-8b-instant"
+RERANKER_NAME = "cross-encoder/ms-marco-MiniLM-L-6-v2"
+RERANK_CANDIDATES = 20
+RERANK_RESULTS = 3
 NOT_FOUND_MESSAGE = "Not found in knowledge base."
 
 
@@ -50,7 +54,44 @@ class FinanceRAG:
         self.retriever = HybridRetriever()
         self.llm_name = llm_name
         self.client = None
+        self.reranker = None
+        self._init_reranker()
         self._init_generation_client()
+
+
+    def _init_reranker(self) -> None:
+        """Initialise the cross-encoder used to rerank hybrid retrieval candidates."""
+        try:
+            self.reranker = CrossEncoder(RERANKER_NAME)
+        except Exception as e:
+            # Reranking improves ordering, but generation can still proceed with
+            # the existing hybrid retriever if the local model is unavailable.
+            print(f"[WARN] Reranker unavailable: {e}")
+            self.reranker = None
+
+    def _retrieve_and_rerank(self, query: str, top_k: int) -> List[Dict[str, object]]:
+        """Retrieve broad candidates, rerank with a cross-encoder, and keep top chunks."""
+        candidates = self.retriever.retrieve(query, top_k=RERANK_CANDIDATES)
+        if not candidates:
+            return []
+
+        if self.reranker is None:
+            return candidates[:top_k]
+
+        try:
+            # Cross-encoder reranking scores each full (query, chunk) pair so the
+            # LLM receives the most relevant chunks from the top hybrid candidates.
+            pairs = [(query, str(item.get("text", ""))) for item in candidates]
+            scores = self.reranker.predict(pairs)
+            for item, score in zip(candidates, scores):
+                item["rerank_score"] = float(score)
+
+            return sorted(candidates, key=lambda item: item["rerank_score"], reverse=True)[:top_k]
+        except Exception as e:
+            # Graceful fallback: if scoring fails, keep the hybrid retriever order
+            # rather than failing the answer path or changing the public API.
+            print(f"[WARN] Reranking failed; using hybrid retrieval results: {e}")
+            return candidates[:top_k]
 
     def _init_generation_client(self) -> None:
         """Initialise the Groq client without loading any local LLM weights."""
@@ -124,7 +165,7 @@ class FinanceRAG:
         return self.answer_with_citations(query, top_k=top_k)["answer"]
 
     def answer_with_citations(self, query: str, top_k: int = 3) -> Dict[str, object]:
-        results = self.retriever.retrieve(query, top_k=top_k)
+        results = self._retrieve_and_rerank(query, top_k=min(top_k, RERANK_RESULTS))
         if not results:
             return {"answer": NOT_FOUND_MESSAGE, "citations": []}
 
