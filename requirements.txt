@@ -4,6 +4,8 @@ rank_bm25
 numpy
 fastapi
 uvicorn
+torch
+transformers
 streamlit
 requests
 pypdf
