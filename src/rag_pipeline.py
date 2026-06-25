@@ -3,45 +3,38 @@
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 from pathlib import Path
 from typing import List
 
-import torch
-from transformers import AutoModelForCausalLM, AutoTokenizer
+from groq import Groq
 
 from src.retriever import HybridRetriever
 
 
 BASE_DIR = Path(__file__).resolve().parents[1]
-LLM_NAME = "TinyLlama/TinyLlama-1.1B-Chat-v1.0"
+LLM_NAME = "llama-3.1-8b-instant"
 NOT_FOUND_MESSAGE = "Not found in knowledge base."
 
 
 class FinanceRAG:
-    """Finance QA pipeline using hybrid retrieval + lightweight generation."""
+    """Finance QA pipeline using hybrid retrieval + Groq-hosted generation."""
 
     def __init__(self, llm_name: str = LLM_NAME) -> None:
         self.retriever = HybridRetriever()
         self.llm_name = llm_name
-        self.tokenizer = None
-        self.model = None
-        self._load_generation_model()
+        self.client = None
+        self._init_generation_client()
 
-    def _load_generation_model(self) -> None:
-        """Load a lightweight open-source LLM for answer generation."""
-        try:
-            self.tokenizer = AutoTokenizer.from_pretrained(self.llm_name)
-            self.model = AutoModelForCausalLM.from_pretrained(
-                self.llm_name,
-                torch_dtype=torch.float16 if torch.cuda.is_available() else torch.float32,
-                device_map="auto" if torch.cuda.is_available() else None,
-            )
-        except Exception as exc:
-            print(f"[WARN] Could not load generation model '{self.llm_name}': {exc}")
-            print("[WARN] Falling back to extractive context response.")
-            self.tokenizer = None
-            self.model = None
+    def _init_generation_client(self) -> None:
+        """Initialise the Groq client without loading any local LLM weights."""
+        api_key = os.getenv("GROQ_API_KEY")
+        if not api_key:
+            print("[WARN] GROQ_API_KEY is not set. Falling back to extractive context response.")
+            return
+
+        self.client = Groq(api_key=api_key)
 
     @staticmethod
     def _build_prompt(query: str, contexts: List[str]) -> str:
@@ -59,27 +52,21 @@ class FinanceRAG:
         if not contexts:
             return NOT_FOUND_MESSAGE
 
-        if self.model is None or self.tokenizer is None:
-            # Graceful fallback when model download is unavailable.
+        if self.client is None:
+            # Keep Streamlit/FastAPI usable when GROQ_API_KEY is unavailable in local dev.
             return f"Based on retrieved context: {contexts[0][:500]}"
 
         prompt = self._build_prompt(query, contexts)
-        inputs = self.tokenizer(prompt, return_tensors="pt", truncation=True, max_length=2048)
 
-        if torch.cuda.is_available():
-            inputs = {k: v.to("cuda") for k, v in inputs.items()}
-
-        with torch.no_grad():
-            output = self.model.generate(
-                **inputs,
-                max_new_tokens=160,
-                temperature=0.2,
-                do_sample=True,
-                pad_token_id=self.tokenizer.eos_token_id,
-            )
-
-        decoded = self.tokenizer.decode(output[0], skip_special_tokens=True)
-        answer = decoded.split("Answer:")[-1].strip()
+        # Generation flow: retrieval has already selected the context; only that
+        # context plus the user question is sent to Groq for answer generation.
+        response = self.client.chat.completions.create(
+            model=self.llm_name,
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=160,
+            temperature=0.2,
+        )
+        answer = response.choices[0].message.content.strip()
         return answer if answer else NOT_FOUND_MESSAGE
 
     def answer(self, query: str, top_k: int = 3) -> str:
