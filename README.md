@@ -1,184 +1,270 @@
 # Finance RAG System
 
-A complete Retrieval-Augmented Generation (RAG) pipeline for financial question answering using **local documents** and optional **ad-hoc PDF upload** in Streamlit.
+A production-ready Retrieval-Augmented Generation (RAG) application for financial question answering. The system combines local financial documents, hybrid retrieval, cross-encoder reranking, and Groq-hosted Llama 3.1 answer generation behind both a FastAPI API and a Streamlit user interface.
 
-## Architecture
+## Project Overview
 
-1. **Corpus Builder (`src/build_corpus.py`)**
-   - Reads local files from `data/raw_docs/`.
-   - Supports `.pdf` and `.txt` sources.
-   - Extracts + cleans text.
-   - Splits text into ~240-word chunks (within the requested 200–300 range).
-   - Saves chunks to `data/finance_corpus.json`.
+Finance RAG helps users ask natural-language questions over a curated financial knowledge base. It indexes local PDF/TXT content into retrievable chunks, searches them with dense and sparse retrieval, reranks the strongest candidates, and generates concise answers constrained to the retrieved context.
 
-2. **Embeddings + Vector DB (`src/embeddings.py`)**
-   - Loads corpus chunks.
-   - Generates dense embeddings with `sentence-transformers/all-MiniLM-L6-v2`.
-   - Normalizes vectors for cosine similarity.
-   - Builds a FAISS inner-product index.
-   - Saves:
-     - `data/finance_embeddings.npy`
-     - `data/finance.index`
-     - `data/finance_mapping.json`
+The existing retrieval and generation pipeline is intentionally preserved:
 
-3. **Hybrid Retriever (`src/retriever.py`)**
-   - Dense retrieval with FAISS.
-   - Sparse retrieval with BM25.
-   - Hybrid scoring: `alpha * dense + (1-alpha) * bm25`.
-   - Returns top-k relevant chunks.
+- FAISS dense vector retrieval
+- BM25 sparse retrieval
+- Hybrid score fusion
+- Cross-Encoder reranking
+- Groq Llama 3.1 generation
+- Extractive fallback when `GROQ_API_KEY` is not configured
 
-4. **RAG Pipeline (`src/rag_pipeline.py`)**
-   - Accepts user query.
-   - Retrieves and reranks context chunks.
-   - Generates an answer with Groq (`llama-3.1-8b-instant`) when `GROQ_API_KEY` is set.
-   - Falls back gracefully to an extractive context response if `GROQ_API_KEY` is unavailable.
+## Features
 
-5. **FastAPI (`api.py`)**
-   - Exposes `/ask` as GET and POST endpoints for programmatic question answering.
+- FastAPI service with `GET /ask` and `POST /ask` endpoints.
+- Streamlit chat UI for API-backed or local in-process answers.
+- Ad-hoc PDF upload and in-session indexing from the UI.
+- Hybrid retrieval using FAISS and BM25.
+- Cross-Encoder reranking of candidate chunks.
+- Source citations by document name and chunk number.
+- Docker image that starts FastAPI and Streamlit together.
+- `.env.example`, `.gitignore`, `.dockerignore`, and MIT license for deployment hygiene.
 
-6. **Streamlit UI (`app.py`)**
-   - Provides an interactive chat interface.
-   - Can call the FastAPI service or run the local in-process RAG pipeline.
-   - Supports ad-hoc PDF upload and in-session indexing.
+## Architecture Diagram
 
-7. **Evaluation (`evaluation/evaluate.py`)**
-   - Runs a small financial query test set.
-   - Computes and prints retrieval **Precision@k**.
-
-## Project Structure
-
-```text
-src/
-  build_corpus.py
-  embeddings.py
-  retriever.py
-  rag_pipeline.py
-  text_processing.py
-evaluation/
-  evaluate.py
-data/
-  finance_corpus.json
-  finance_mapping.json
-api.py
-app.py
-Dockerfile
-.dockerignore
-README.md
-requirements.txt
+```mermaid
+flowchart TD
+    A[Financial PDFs / TXT files] --> B[src/build_corpus.py]
+    B --> C[data/finance_corpus.json]
+    C --> D[src/embeddings.py]
+    D --> E[FAISS index + mapping]
+    C --> F[BM25 corpus]
+    E --> G[src/retriever.py HybridRetriever]
+    F --> G
+    G --> H[Cross-Encoder reranker]
+    H --> I[src/rag_pipeline.py FinanceRAG]
+    I --> J[Groq Llama 3.1]
+    J --> K[Answer + citations]
+    I --> L[FastAPI api.py]
+    I --> M[Streamlit app.py]
+    L --> M
 ```
 
-## Configuration
+## Tech Stack
 
-The application reads secrets and runtime settings from environment variables.
+- **Language:** Python 3.11
+- **API:** FastAPI, Uvicorn, Pydantic
+- **UI:** Streamlit
+- **Retrieval:** FAISS, rank-bm25
+- **Embeddings:** Sentence Transformers (`sentence-transformers/all-MiniLM-L6-v2`)
+- **Reranking:** Sentence Transformers Cross-Encoder (`cross-encoder/ms-marco-MiniLM-L-6-v2`)
+- **Generation:** Groq Llama 3.1 (`llama-3.1-8b-instant`)
+- **PDF parsing:** pypdf
+- **Market data helper:** yfinance
+- **Deployment:** Docker
+
+## Installation
+
+```bash
+git clone <your-repo-url>
+cd RAG
+python -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
+```
+
+> Dependency lock note: `requirements.txt` is intentionally a concise runtime dependency list. For stricter production reproducibility, generate and review a pinned lock file with your preferred tool, then rebuild and test the Docker image before deployment.
+
+## Local Setup
+
+1. Copy the sample environment file:
+
+   ```bash
+   cp .env.example .env
+   ```
+
+2. Add your Groq key to `.env` or export it in your shell:
+
+   ```bash
+   export GROQ_API_KEY="your_groq_api_key_here"
+   ```
+
+3. If you add or change local documents, place supported files in `data/raw_docs/` and rebuild the corpus:
+
+   ```bash
+   python src/build_corpus.py
+   ```
+
+4. Build or refresh embeddings and the FAISS index:
+
+   ```bash
+   python src/embeddings.py
+   ```
+
+## Environment Variables
 
 | Variable | Required | Default | Purpose |
 | --- | --- | --- | --- |
-| `GROQ_API_KEY` | Recommended | unset | Enables Groq-hosted answer generation. If omitted, the app still runs and returns an extractive fallback from retrieved context. |
-| `FINANCE_RAG_API_URL` | No | `http://127.0.0.1:8000/ask` | Streamlit API-mode endpoint. The Docker image sets this for the in-container FastAPI service. |
-| `API_PORT` | No | `8000` | FastAPI port inside the container command. |
-| `STREAMLIT_PORT` | No | `8501` | Streamlit port inside the container command. |
+| `GROQ_API_KEY` | Yes for generated answers | unset | Enables Groq-hosted Llama 3.1 answer generation. Without it, the app returns an extractive fallback from retrieved context. |
+| `FINANCE_RAG_API_URL` | No | `http://127.0.0.1:8000/ask` | Streamlit API-mode endpoint. |
+| `API_PORT` | No | `8000` | FastAPI port used by the Docker command. |
+| `STREAMLIT_PORT` | No | `8501` | Streamlit port used by the Docker command. |
 
-Create a local `.env` file if desired, but do not commit it:
+`.env.example` includes only the required application configuration values:
 
-```bash
-GROQ_API_KEY=your_groq_api_key_here
+```dotenv
+GROQ_API_KEY=
+FINANCE_RAG_API_URL=http://127.0.0.1:8000/ask
 ```
 
-## Local Execution
-
-1. Create and activate a virtual environment:
-
-```bash
-python -m venv .venv
-source .venv/bin/activate
-```
-
-2. Install all dependencies:
-
-```bash
-pip install -r requirements.txt
-```
-
-3. Export the Groq key for generated answers:
-
-```bash
-export GROQ_API_KEY="your_groq_api_key_here"
-```
-
-4. If you have new source documents, add `.pdf` or `.txt` files to `data/raw_docs/` and rebuild the corpus:
-
-```bash
-python src/build_corpus.py
-```
-
-5. Build or refresh the local FAISS index:
-
-```bash
-python src/embeddings.py
-```
-
-6. Start the FastAPI service:
+## Running FastAPI
 
 ```bash
 uvicorn api:app --host 127.0.0.1 --port 8000
 ```
 
-7. In a second terminal, start the Streamlit UI:
+Health check:
+
+```bash
+curl http://127.0.0.1:8000/
+```
+
+Ask endpoint:
+
+```bash
+curl "http://127.0.0.1:8000/ask?query=How%20do%20interest%20rates%20affect%20bond%20prices%3F"
+```
+
+## Running Streamlit
+
+In a second terminal, keep FastAPI running and start Streamlit:
 
 ```bash
 streamlit run app.py
 ```
 
-8. Open Streamlit at `http://localhost:8501`. In API mode, keep the default API URL `http://127.0.0.1:8000/ask`; in Local mode, Streamlit runs the RAG pipeline in-process.
-
-## Command-Line Usage and Checks
-
-Run a single RAG query from the command line:
-
-```bash
-python src/rag_pipeline.py -q "How do interest rates affect bond prices?"
-```
-
-Evaluate retrieval quality:
-
-```bash
-python evaluation/evaluate.py
-```
-
-Run the full project checks, including corpus/index generation and an API smoke test:
-
-```bash
-bash scripts/run_full_checks.sh
-```
+Open `http://localhost:8501` and keep the default API URL when using API mode: `http://127.0.0.1:8000/ask`.
 
 ## Docker Deployment
 
-The Docker image installs the dependencies from `requirements.txt`, builds the FAISS index from the checked-in corpus during the image build, and starts both FastAPI and Streamlit in the same container.
+The Docker image installs runtime dependencies, builds the FAISS artifacts from the checked-in corpus during image build, creates a non-root runtime user, and starts FastAPI and Streamlit in the same container.
 
-1. Build the image:
+Build:
 
 ```bash
-docker build -t finance-rag-system .
+docker build -t finance-rag .
 ```
 
-2. Run the container with your Groq API key:
+Run:
 
 ```bash
 docker run --rm \
   -p 8000:8000 \
   -p 8501:8501 \
-  -e GROQ_API_KEY="your_groq_api_key_here" \
-  finance-rag-system
+  -e GROQ_API_KEY=YOUR_KEY \
+  finance-rag
 ```
 
-3. Open the services:
+Services:
 
-- Streamlit UI: `http://localhost:8501`
-- FastAPI health endpoint: `http://localhost:8000/`
-- FastAPI ask endpoint: `http://localhost:8000/ask?query=How%20do%20interest%20rates%20affect%20bond%20prices%3F`
+- FastAPI: `http://localhost:8000`
+- Streamlit: `http://localhost:8501`
+- API query: `http://localhost:8000/ask?query=How%20do%20interest%20rates%20affect%20bond%20prices%3F`
 
-If you need to use different ports inside the container, set `API_PORT` and `STREAMLIT_PORT` and update the published port mappings accordingly.
+## Example API Request
 
-## Dependency Verification
+GET request:
 
-All runtime dependencies needed by the API, Streamlit UI, retrieval pipeline, PDF upload, Groq generation, embeddings, FAISS index, yfinance helper, and evaluation scripts are listed in `requirements.txt`.
+```bash
+curl -s "http://127.0.0.1:8000/ask?query=What%20does%20a%20central%20bank%20do%3F"
+```
+
+POST request:
+
+```bash
+curl -s -X POST "http://127.0.0.1:8000/ask" \
+  -H "Content-Type: application/json" \
+  -d '{"query":"What does a central bank do?"}'
+```
+
+Example response shape:
+
+```json
+{
+  "query": "What does a central bank do?",
+  "answer": "...",
+  "citations": [
+    {
+      "pdf_filename": "finance_source.pdf",
+      "chunk_number": 1
+    }
+  ]
+}
+```
+
+## Example UI Screenshots
+
+Add production screenshots here before publishing public documentation:
+
+- `docs/screenshots/streamlit-chat.png` — Streamlit chat interface placeholder.
+- `docs/screenshots/streamlit-upload.png` — PDF upload workflow placeholder.
+- `docs/screenshots/api-docs.png` — FastAPI Swagger UI placeholder.
+
+## Folder Structure
+
+```text
+.
+├── api.py                     # FastAPI application
+├── app.py                     # Streamlit UI
+├── data/
+│   ├── finance_corpus.json    # Checked-in retrieval corpus
+│   └── finance_mapping.json   # Checked-in chunk metadata
+├── evaluation/
+│   └── evaluate.py            # Retrieval evaluation helper
+├── scripts/
+│   └── run_full_checks.sh     # Compile, indexing, RAG, evaluation, API smoke checks
+├── src/
+│   ├── build_corpus.py        # Local document ingestion
+│   ├── embedder.py            # SentenceTransformer loader
+│   ├── embeddings.py          # Embedding + FAISS artifact generation
+│   ├── rag_pipeline.py        # RAG orchestration and Groq answer generation
+│   ├── realtime_data.py       # yfinance helper
+│   ├── retriever.py           # Hybrid FAISS + BM25 retrieval
+│   └── text_processing.py     # Text cleanup/chunking/PDF extraction
+├── .dockerignore
+├── .env.example
+├── .gitignore
+├── Dockerfile
+├── LICENSE
+├── README.md
+└── requirements.txt
+```
+
+## Checks
+
+Compile Python files:
+
+```bash
+python -m compileall -q .
+```
+
+Run the full local smoke suite:
+
+```bash
+bash scripts/run_full_checks.sh
+```
+
+Run dependency import verification:
+
+```bash
+python - <<'PY'
+import fastapi, faiss, groq, numpy, pydantic, pypdf, rank_bm25, requests, sentence_transformers, streamlit, torch, uvicorn, yfinance
+print("dependency imports ok")
+PY
+```
+
+## Future Improvements
+
+- Add a reviewed pinned dependency lock file for reproducible releases.
+- Add CI for compile checks, dependency import checks, and Docker build validation.
+- Add production screenshots under `docs/screenshots/`.
+- Add structured logging and metrics around retrieval, reranking, and answer latency.
+- Add deployment-specific manifests for the chosen hosting platform.
+- Add automated security scanning for base images and Python dependencies.

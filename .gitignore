@@ -1,21 +1,46 @@
-﻿.venv/
-**pycache**/
-*.pyc
+# Environment and secrets
+.env
+.env.*
+!.env.example
 
-# Python cache
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
 
-src/**pycache**/
-evaluation/**pycache**/
+# Python caches and build artifacts
+__pycache__/
+**/__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
 
 # Generated embeddings and indexes
-
 data/*.npy
 data/*.index
 
-# OS files
+# Local/private documents
+data/raw_docs/
 
+# Logs and temporary files
+*.log
+logs/
+tmp/
+temp/
+*.tmp
+
+# Editor, notebook, and OS files
+.ipynb_checkpoints/
+.vscode/
+.idea/
 .DS_Store
 Thumbs.db
-
-
-data/raw_docs/
