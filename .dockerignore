@@ -1,26 +1,51 @@
+# Git and local environment
 .git
 .gitignore
 .dockerignore
-Dockerfile
-.venv/
-venv/
-env/
+.env
+.env.*
+!.env.example
+
+# Python caches and build artifacts
 __pycache__/
 **/__pycache__/
 *.py[cod]
 *.pyo
 *.pyd
+*.egg-info/
+build/
+dist/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
+.coverage
+htmlcov/
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Notebooks, editor, and OS files
 .ipynb_checkpoints/
+.vscode/
+.idea/
 .DS_Store
 Thumbs.db
+
+# Logs and temporary files
 *.log
-.env
-.env.*
-!.env.example
+logs/
+tmp/
+temp/
+*.tmp
+
+# Local Streamlit state
 .streamlit/
+
+# Local/private source documents and regenerated indexes
+# The checked-in corpus and mapping remain included for reproducible image builds.
 data/raw_docs/
 data/*.npy
 data/*.index
