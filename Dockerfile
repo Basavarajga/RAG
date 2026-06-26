@@ -22,11 +22,10 @@ RUN python -m pip install --upgrade pip \
 
 COPY . .
 
-# Build the FAISS index from the checked-in corpus so the image is ready to serve.
-RUN python src/embeddings.py \
-    && useradd --create-home --shell /usr/sbin/nologin appuser \
+# Create a non-root user
+RUN useradd --create-home --shell /usr/sbin/nologin appuser \
     && chown -R appuser:appuser /app
-
+    
 USER appuser
 
 EXPOSE 8000 8501
